@@ -1,38 +1,97 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-//design schema for user
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// ================= SCHEMA =================
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    dob: { type: String },
+    address: { type: String },
+    course: { type: String },
     password: { type: String, required: true },
+    role: { type: String, default: "user" } // admin or user
 });
 
-//model for user
+// MODEL
 const User = mongoose.model('User', userSchema);
-// Middleware
-app.use(express.json());
-// Connect to MongoDB
+
+// ================= DB CONNECTION =================
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.error('MongoDB connection error:', err));
 
-app.post('/register', async (req, res) => {
+
+// ================= ROUTES =================
+
+// 🔹 REGISTER
+app.post('/api/register', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
-        const user = new User({ username, email, password });
+        const { name, email, password, dob, address, course } = req.body;
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "Email already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = new User({
+            name,
+            email,
+            password: hashedPassword,
+            dob,
+            address,
+            course
+        });
+
         await user.save();
-        res.status(201).json({ message: 'User registered successfully' });
+
+        res.status(201).json({ message: "User registered successfully" });
+
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/users', async (req, res) => {
+
+// 🔹 LOGIN
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid password" });
+        }
+
+        res.json({
+            message: "Login successful",
+            user
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// 🔹 GET ALL USERS (Admin)
+app.get('/api/users', async (req, res) => {
     try {
         const users = await User.find();
         res.json(users);
@@ -41,37 +100,92 @@ app.get('/users', async (req, res) => {
     }
 });
 
-// delete user by name
-app.delete('/users/:username', async (req, res) => {
+
+// 🔹 UPDATE USER (User Dashboard - cannot change email)
+app.put('/api/user/:id', async (req, res) => {
     try {
-        const { username } = req.params;
-        const result = await User.deleteOne({ username });
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+        const { name, dob, address, course } = req.body;
 
-//update user by name
-app.put('/users/:username', async (req, res) => {
-    try {        const { username } = req.params;
-        const { email, password } = req.body;
-        const user = await User.findOneAndUpdate(
-            { username },
-            { email, password }
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { name, dob, address, course },
+            { new: true }
         );
+
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: "User not found" });
         }
-        res.json(user);
+
+        res.json({ message: "Profile updated", user });
+
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
+
+// 🔹 ADMIN UPDATE ANY USER
+app.put('/api/admin/update/:id', async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "User updated", user });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// 🔹 DELETE USER (Admin)
+app.delete('/api/admin/delete/:id', async (req, res) => {
+    try {
+        const result = await User.findByIdAndDelete(req.params.id);
+
+        if (!result) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "User deleted successfully" });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// 🔹 RESET PASSWORD (Admin)
+app.put('/api/admin/reset-password/:id', async (req, res) => {
+    try {
+        const defaultPassword = await bcrypt.hash("123456", 10);
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { password: defaultPassword },
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "Password reset to 123456" });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// ================= SERVER =================
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
