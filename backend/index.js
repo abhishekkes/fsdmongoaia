@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -19,16 +20,43 @@ const userSchema = new mongoose.Schema({
     address: { type: String },
     course: { type: String },
     password: { type: String, required: true },
-    role: { type: String, default: "user" } // admin or user
+    role: { type: String, default: "user" }
 });
 
-// MODEL
 const User = mongoose.model('User', userSchema);
 
-// ================= DB CONNECTION =================
+// ================= DB =================
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.error('MongoDB connection error:', err));
+
+
+// ================= JWT MIDDLEWARE =================
+const authMiddleware = (req, res, next) => {
+    try {
+        const token = req.headers.authorization;
+
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        req.user = decoded; // { id, role }
+
+        next();
+    } catch (error) {
+        res.status(401).json({ message: "Invalid token" });
+    }
+};
+
+// Admin check
+const adminMiddleware = (req, res, next) => {
+    if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access only" });
+    }
+    next();
+};
 
 
 // ================= ROUTES =================
@@ -64,7 +92,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 
-// 🔹 LOGIN
+// 🔹 LOGIN (UPDATED WITH JWT)
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -79,8 +107,16 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ message: "Invalid password" });
         }
 
+        // 🔥 Create Token
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        );
+
         res.json({
             message: "Login successful",
+            token,
             user
         });
 
@@ -90,8 +126,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-// 🔹 GET ALL USERS (Admin)
-app.get('/api/users', async (req, res) => {
+// 🔹 GET ALL USERS (ADMIN ONLY)
+app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const users = await User.find();
         res.json(users);
@@ -101,8 +137,8 @@ app.get('/api/users', async (req, res) => {
 });
 
 
-// 🔹 UPDATE USER (User Dashboard - cannot change email)
-app.put('/api/user/:id', async (req, res) => {
+// 🔹 UPDATE USER (PROTECTED)
+app.put('/api/user/:id', authMiddleware, async (req, res) => {
     try {
         const { name, dob, address, course } = req.body;
 
@@ -124,8 +160,8 @@ app.put('/api/user/:id', async (req, res) => {
 });
 
 
-// 🔹 ADMIN UPDATE ANY USER
-app.put('/api/admin/update/:id', async (req, res) => {
+// 🔹 ADMIN UPDATE
+app.put('/api/admin/update/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(
             req.params.id,
@@ -145,8 +181,8 @@ app.put('/api/admin/update/:id', async (req, res) => {
 });
 
 
-// 🔹 DELETE USER (Admin)
-app.delete('/api/admin/delete/:id', async (req, res) => {
+// 🔹 DELETE USER (ADMIN)
+app.delete('/api/admin/delete/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const result = await User.findByIdAndDelete(req.params.id);
 
@@ -162,8 +198,8 @@ app.delete('/api/admin/delete/:id', async (req, res) => {
 });
 
 
-// 🔹 RESET PASSWORD (Admin)
-app.put('/api/admin/reset-password/:id', async (req, res) => {
+// 🔹 RESET PASSWORD (ADMIN)
+app.put('/api/admin/reset-password/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const defaultPassword = await bcrypt.hash("123456", 10);
 
