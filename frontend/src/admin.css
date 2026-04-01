@@ -1,0 +1,42 @@
+.admin {
+  width: 80%;
+  margin: 40px auto;
+  text-align: center;
+}
+
+.admin h2 {
+  margin-bottom: 20px;
+}
+
+.admin table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.admin th, .admin td {
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+
+.admin th {
+  background: #007bff;
+  color: white;
+}
+
+.admin button {
+  padding: 6px 10px;
+  margin: 2px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.admin button:first-child {
+  background: #dc3545;
+  color: white;
+}
+
+.admin button:last-child {
+  background: #ffc107;
+}

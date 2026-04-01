@@ -1,0 +1,103 @@
+/* Background gradient for whole page */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  height: 100vh;
+}
+
+/* Glass container */
+.dashboard {
+  width: 420px;
+  margin: 80px auto;
+  padding: 30px;
+  border-radius: 15px;
+
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+  color: white;
+  text-align: center;
+  transition: 0.3s ease;
+}
+
+/* Hover floating effect */
+.dashboard:hover {
+  transform: translateY(-5px);
+}
+
+/* Heading */
+.dashboard h2 {
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+/* Inputs */
+.dashboard input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+
+  border-radius: 8px;
+  border: none;
+
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+
+  outline: none;
+  font-size: 14px;
+}
+
+/* Placeholder color */
+.dashboard input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Disabled input */
+.dashboard input:disabled {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Button group */
+.dashboard .btn-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+
+/* Buttons */
+.dashboard button {
+  width: 48%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+/* Update button */
+.dashboard button:first-child {
+  background: rgba(40, 167, 69, 0.8);
+  color: white;
+}
+
+.dashboard button:first-child:hover {
+  background: rgba(40, 167, 69, 1);
+}
+
+/* Logout button */
+.dashboard button:last-child {
+  background: rgba(220, 53, 69, 0.8);
+  color: white;
+}
+
+.dashboard button:last-child:hover {
+  background: rgba(220, 53, 69, 1);
+}
